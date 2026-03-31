@@ -1,0 +1,85 @@
+package com.gov.ma.saoluis.agendamento.service;
+
+import com.gov.ma.saoluis.agendamento.model.ConfiguracaoAtendimento;
+import com.gov.ma.saoluis.agendamento.model.DiaSemana;
+import com.gov.ma.saoluis.agendamento.model.HorarioAtendimento;
+import com.gov.ma.saoluis.agendamento.model.SlotAtendimento;
+import com.gov.ma.saoluis.agendamento.repository.SlotAtendimentoRepository;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.List;
+
+@Service
+public class SlotAtendimentoService {
+
+    private final SlotAtendimentoRepository slotRepo;
+
+    public SlotAtendimentoService(SlotAtendimentoRepository slotRepo) {
+        this.slotRepo = slotRepo;
+    }
+
+    @Transactional
+    public void garantirSlotsDoDia(ConfiguracaoAtendimento cfg, LocalDate data) {
+
+        // 📆 só gera slot se a data estiver configurada
+        if (cfg.getDatasAtendimento() == null
+                || !cfg.getDatasAtendimento().contains(data)) {
+            return;
+        }
+
+        for (HorarioAtendimento ht : cfg.getHorarios()) {
+            // ✅ ideal: insertIfNotExists (ON CONFLICT) para não abortar transação
+            slotRepo.insertIfNotExists(
+                    cfg.getId(),
+                    data,
+                    ht.getHora(),
+                    cfg.getNumeroGuiches()
+            );
+        }
+    }
+
+    @Transactional
+    public SlotAtendimento lockSlot(Long configuracaoId, LocalDate data, LocalTime hora) {
+        return slotRepo.lockSlot(configuracaoId, data, hora)
+                .orElseThrow(() -> new RuntimeException("Horário indisponível"));
+    }
+
+    public List<SlotAtendimento> listarHorariosDisponiveis(Long configuracaoId, LocalDate data) {
+        return slotRepo.findByConfiguracaoIdAndDataOrderByHora(configuracaoId, data)
+                .stream()
+                .filter(SlotAtendimento::temVaga)
+                .toList();
+    }
+
+    public List<SlotAtendimento> listarSlotsPorSetor(Long setorId, LocalDate data) {
+
+        if (data != null) {
+            return slotRepo.findByConfiguracaoSetorIdAndAtivoTrueAndDataOrderByHoraAsc(
+                    setorId, data
+            );
+        }
+
+        return slotRepo.findByConfiguracaoSetorIdAndAtivoTrueAndDataGreaterThanEqualOrderByDataAscHoraAsc(
+                setorId, LocalDate.now()
+        );
+    }
+
+    @Transactional
+    public void excluirSlot(Long configuracaoId, LocalDate data, LocalTime hora) {
+        int total = slotRepo.deleteByConfiguracaoIdAndDataAndHora(configuracaoId, data, hora);
+        if (total == 0) {
+            throw new RuntimeException("Horário não encontrado para excluir.");
+        }
+    }
+
+    // 🟢 Novo método para sincronizar os slots já gerados com a nova capacidade
+    @Transactional
+    public void sincronizarCapacidadeFutura(Long configuracaoId, int novaCapacidade) {
+        slotRepo.atualizarCapacidadeFutura(configuracaoId, novaCapacidade);
+    }
+}

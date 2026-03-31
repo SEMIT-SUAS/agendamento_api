@@ -17,7 +17,15 @@ public class WebConfig {
                         .allowedOriginPatterns(
                                 "http://127.0.0.1",   // XAMPP default
                                 "http://localhost",     // alternativa
-                                "http://192.168.200.42"
+                                "http://192.168.200.42",
+                                "http://192.168.100.21",
+                                "http://localhost:5173",
+                                "http://10.0.0.243",
+                                "http://10.0.0.243:5173",
+                                "http://10.0.0.243:3000",
+                                "http://192.168.200.242",
+                                "http://192.168.200.29",
+                                "http://192.168.200.63:5173"
                         )
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowCredentials(true);
@@ -25,4 +33,3 @@ public class WebConfig {
         };
     }
 }
-

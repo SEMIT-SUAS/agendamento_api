@@ -1,8 +1,10 @@
 package com.gov.ma.saoluis.agendamento.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 @Entity
 @Table(name = "agendamento")
 public class Agendamento {
@@ -12,7 +14,7 @@ public class Agendamento {
     private Long id;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "usuario_id")
+    @JoinColumn(name = "usuario_id", nullable = true)
     private Usuario usuario;
 
     @ManyToOne(fetch = FetchType.EAGER)
@@ -22,20 +24,63 @@ public class Agendamento {
     @Column(name = "hora_agendamento", nullable = false)
     private LocalDateTime horaAgendamento;
 
-    @Column(nullable = false, length = 50)
-    private String situacao;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private SituacaoAgendamento situacao;
 
-    @Column(name = "tipo_atendimento", nullable = false, length = 30)
-    private String tipoAtendimento; // NORMAL, PRIORIDADE, PREFERENCIAL
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "tipo_atendimento_id", nullable = false)
+    private TipoAtendimento tipoAtendimento; // NORMAL, PRIORIDADE, PREFERENCIAL
 
     @Column(nullable = false, length = 10)
     private String senha; // Ex: P001, N002, F003
     
     private LocalDateTime horaChamada;
 
+    @Column(name = "hora_finalizado") // 🟢 Novo campo
+    private LocalDateTime horaFinalizado;
+
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "atendente_id")
-    private Atendente atendente;
+    @JoinColumn(name = "gerenciador_id")
+    private Gerenciador gerenciador;
+
+    @Column(name = "nome_cidadao", length = 255)
+    private String nome_cidadao;
+
+    @Column(name = "cpf", length = 11, nullable = false)
+    private String cpf;
+
+    @Column(name = "data_nascimento", nullable = false)
+    private LocalDate dataNascimento;
+
+    @Column(name = "celular", length = 20)
+    private String celular;
+
+    @Column(name = "email", length = 255)
+    private String email;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JsonIgnore
+    @JoinColumn(name = "secretaria_id", nullable = false)
+    private Secretaria secretaria;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_agendamento", nullable = false)
+    private TipoAgendamento tipoAgendamento;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "setor_id", nullable = false)
+    private Setor setor;
+
+    @Column(name = "ultimo_ping")
+    private LocalDateTime ultimoPing;
+
+    @Column(name = "observacao", columnDefinition = "TEXT")
+    private String observacao;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "servico_saude_id", nullable = true) // 🟢 Hospital/Saúde
+    private ServicoSaude servicoSaude;
 
     // Getters e Setters
     public Long getId() {
@@ -68,18 +113,20 @@ public class Agendamento {
         this.horaAgendamento = horaAgendamento;
     }
 
-    public String getSituacao() {
+    public SituacaoAgendamento getSituacao() {
         return situacao;
     }
-    public void setSituacao(String situacao) {
+
+    public void setSituacao(SituacaoAgendamento situacao) {
         this.situacao = situacao;
     }
 
-    public String getTipoAtendimento() {
-        return tipoAtendimento;
-    }
-    public void setTipoAtendimento(String tipoAtendimento) {
+    public void setTipoAtendimento(TipoAtendimento tipoAtendimento) {
         this.tipoAtendimento = tipoAtendimento;
+    }
+
+    public TipoAtendimento getTipoAtendimento() {
+        return tipoAtendimento;
     }
 
     public String getSenha() {
@@ -95,11 +142,107 @@ public class Agendamento {
 		this.horaChamada = horaChamada;
 	}
 
-    public Atendente getAtendente() {
-        return atendente;
+    public LocalDateTime getHoraFinalizado() {
+        return horaFinalizado;
     }
 
-    public void setAtendente(Atendente atendente) {
-        this.atendente = atendente;
+    public void setHoraFinalizado(LocalDateTime horaFinalizado) {
+        this.horaFinalizado = horaFinalizado;
+    }
+
+    public Gerenciador getAtendente() {
+        return gerenciador;
+    }
+
+    public void setAtendente(Gerenciador gerenciador) {
+        this.gerenciador = gerenciador;
+    }
+
+    public String getNomeCidadao(){
+        return nome_cidadao;
+    }
+
+    public void setNomeCidadao(String nome_cidadao){
+        this.nome_cidadao = nome_cidadao;
+    }
+
+    public String getCpf() {
+        return cpf;
+    }
+
+    public void setCpf(String cpf) {
+        this.cpf = cpf;
+    }
+
+    public LocalDate getDataNascimento() {
+        return dataNascimento;
+    }
+
+    public void setDataNascimento(LocalDate dataNascimento) {
+        this.dataNascimento = dataNascimento;
+    }
+
+    public String getCelular() {
+        return celular;
+    }
+
+    public void setCelular(String celular) {
+        this.celular = celular;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public void setSecretaria(Secretaria secretaria) {
+        this.secretaria = secretaria;
+    }
+
+    public Secretaria getSecretaria() {
+        return secretaria;
+    }
+
+    public TipoAgendamento getTipoAgendamento() {
+        return tipoAgendamento;
+    }
+
+    public void setTipoAgendamento(TipoAgendamento tipoAgendamento) {
+        this.tipoAgendamento = tipoAgendamento;
+    }
+
+    public Setor getSetor() {
+        return setor;
+    }
+
+    public void setSetor(Setor setor) {
+        this.setor = setor;
+    }
+
+    public LocalDateTime getUltimoPing() {
+        return ultimoPing;
+    }
+
+    public void setUltimoPing(LocalDateTime ultimoPing) {
+        this.ultimoPing = ultimoPing;
+    }
+
+    public String getObservacao() {
+        return observacao;
+    }
+
+    public void setObservacao(String observacao) {
+        this.observacao = observacao;
+    }
+
+    public ServicoSaude getServicoSaude() {
+        return servicoSaude;
+    }
+
+    public void setServicoSaude(ServicoSaude servicoSaude) {
+        this.servicoSaude = servicoSaude;
     }
 }

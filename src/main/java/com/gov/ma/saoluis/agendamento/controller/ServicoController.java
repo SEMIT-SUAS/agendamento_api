@@ -1,5 +1,8 @@
 package com.gov.ma.saoluis.agendamento.controller;
 
+import com.gov.ma.saoluis.agendamento.DTO.ServicoResponseDTO;
+import com.gov.ma.saoluis.agendamento.DTO.VincularEnderecosDTO;
+import com.gov.ma.saoluis.agendamento.DTO.VincularSetoresDTO;
 import com.gov.ma.saoluis.agendamento.model.Servico;
 import com.gov.ma.saoluis.agendamento.service.ServicoService;
 import org.springframework.http.HttpStatus;
@@ -10,7 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @RestController
-@RequestMapping("/agendamento/api/servico")
+@RequestMapping("/api/agendamento/api/servico")
 public class ServicoController {
 
     private final ServicoService servicoService;
@@ -47,5 +50,43 @@ public class ServicoController {
         }
     }
 
-    // Exemplo de teste rápido com System.out.print
+    @PutMapping("/servicos/{id}/setores")
+    public ResponseEntity<ServicoResponseDTO> vincularSetores(
+            @PathVariable Long id,
+            @RequestBody VincularSetoresDTO dto
+    ) {
+        Servico servico = servicoService.vincularSetores(id, dto.setorIds());
+
+        return ResponseEntity.ok(
+                new ServicoResponseDTO(
+                        servico.getId(),
+                        servico.getNome(),
+                        servico.getDescricao()
+                )
+        );
+    }
+
+    @PutMapping("/servicos/{id}/setores/remover")
+    public ResponseEntity<ServicoResponseDTO> desvincularSetores(
+            @PathVariable Long id,
+            @RequestBody VincularSetoresDTO dto
+    ) {
+        Servico servico = servicoService.desvincularSetores(id, dto.setorIds());
+
+        return ResponseEntity.ok(
+                new ServicoResponseDTO(
+                        servico.getId(),
+                        servico.getNome(),
+                        servico.getDescricao()
+                )
+        );
+    }
+
+    @GetMapping("/setor/{setorId}")
+    public ResponseEntity<List<ServicoResponseDTO>> listarPorSetor(
+            @PathVariable Long setorId,
+            @RequestParam(required = false) Long gerenciadorId
+    ) {
+        return ResponseEntity.ok(servicoService.listarPorSetor(setorId, gerenciadorId));
+    }
 }

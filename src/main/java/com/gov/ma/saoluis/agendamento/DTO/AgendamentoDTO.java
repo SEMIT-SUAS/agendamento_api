@@ -10,11 +10,34 @@ public interface AgendamentoDTO {
     LocalDateTime getHoraAgendamento();
     String getSituacao();
     String getSenha();
-    String getTipoAtendimento();
+    // Adicione estes métodos dentro da sua interface AgendamentoDTO
+    Long getTipoAtendimentoId();
+    String getTipoAtendimento(); // Esse você provavelmente já tem
+    String getTipoAtendimentoSigla();
+    Integer getTipoAtendimentoPeso();
+    String getTipoAgendamento();
+    String getObservacao();
 
     Long getUsuarioId();
     String getUsuarioNome();
 
     Long getServicoId();
     String getServicoNome();
+
+    // 🔹 Novos campos da secretaria
+    Long getSecretariaId();
+    String getSecretariaNome();
+
+    String getGuiche();
+    Long getGerenciadorId(); // recomendo também retornar, ajuda debug
+
+    // 🔹 Endereço (NOVO)
+    Long getEnderecoId();
+    String getEnderecoLogradouro();
+    String getEnderecoNumero();
+    String getEnderecoBairro();
+    String getEnderecoCidade();
+    String getEnderecoUf();
+    String getEnderecoCep();
+    String getEnderecoComplemento();
 }

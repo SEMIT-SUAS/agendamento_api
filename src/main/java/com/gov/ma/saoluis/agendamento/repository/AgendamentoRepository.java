@@ -3,36 +3,30 @@ package com.gov.ma.saoluis.agendamento.repository;
 import com.gov.ma.saoluis.agendamento.DTO.AgendamentoDTO;
 import com.gov.ma.saoluis.agendamento.DTO.UltimaChamadaDTO;
 import com.gov.ma.saoluis.agendamento.model.Agendamento;
+import com.gov.ma.saoluis.agendamento.model.SituacaoAgendamento;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import org.springframework.data.domain.Pageable;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface AgendamentoRepository extends JpaRepository<Agendamento, Long> {
 
-	@Query(value = """
-        SELECT
-            a.id               AS agendamentoId,
-            a.hora_agendamento AS horaAgendamento,
-            a.situacao         AS situacao,
-            a.senha            AS senha,
-            a.tipo_atendimento AS tipoAtendimento,
+	// Adicione isto no seu AgendamentoRepository
+	boolean existsByGerenciadorIdAndSituacaoIn(Long gerenciadorId, List<String> situacoes);
 
-            u.id               AS usuarioId,
-            u.nome             AS usuarioNome,
+	@Query(value = "select * from agendamento where id = :id", nativeQuery = true)
+	Optional<Agendamento> findByIdNativo(@Param("id") Long id);
 
-            s.id               AS servicoId,
-            s.nome             AS servicoNome
-
-        FROM agendamento a
-        LEFT JOIN usuario u ON a.usuario_id = u.id
-        LEFT JOIN servico s  ON a.servico_id = s.id
-        """, nativeQuery = true)
-	List<AgendamentoDTO> buscarAgendamentosComDetalhes();
+	List<Agendamento> findBySituacaoInAndUltimoPingBefore(List<SituacaoAgendamento> situacoes, LocalDateTime limite);
 
 	@Query(value = """
         SELECT
@@ -40,98 +34,251 @@ public interface AgendamentoRepository extends JpaRepository<Agendamento, Long> 
             a.hora_agendamento AS horaAgendamento,
             a.situacao         AS situacao,
             a.senha            AS senha,
-            a.tipo_atendimento AS tipoAtendimento,
+            ta.nome            AS tipoAtendimento,
 
             u.id               AS usuarioId,
             u.nome             AS usuarioNome,
 
             s.id               AS servicoId,
-            s.nome             AS servicoNome
+            s.nome             AS servicoNome,
+
+            sec.id             AS secretariaId,
+            sec.nome           AS secretariaNome
 
         FROM agendamento a
+        LEFT JOIN tipo_atendimento ta ON a.tipo_atendimento_id = ta.id
         LEFT JOIN usuario u ON a.usuario_id = u.id
-        LEFT JOIN servico s  ON a.servico_id = s.id
-        WHERE s.secretaria_id = :secretariaId
+        LEFT JOIN servico s ON a.servico_id = s.id
+        LEFT JOIN secretaria sec ON s.secretaria_id = sec.id
+        WHERE a.id = :agendamentoId
         """, nativeQuery = true)
-	List<AgendamentoDTO> buscarAgendamentosPorSecretaria(@Param("secretariaId") Long secretariaId);
+	List<AgendamentoDTO> buscarAgendamentosComDetalhes(@Param("agendamentoId") Long agendamentoId);
 
+	@Query(value = """
+        SELECT
+            a.id               AS agendamentoId,
+            a.hora_agendamento AS horaAgendamento,
+            a.situacao         AS situacao,
+            a.senha            AS senha,
+            ta.nome            AS tipoAtendimento,
 
-	long countByTipoAtendimento(String tipoAtendimento);
+            u.id               AS usuarioId,
+            u.nome             AS usuarioNome,
 
-	@Query("SELECT COUNT(a) FROM Agendamento a " +
-		       "WHERE a.tipoAtendimento = :tipoAtendimento " +
-		       "AND FUNCTION('DATE', a.horaAgendamento) = :data")
-		long countByTipoAtendimentoAndData(@Param("tipoAtendimento") String tipoAtendimento,
-		                                   @Param("data") LocalDate data);
+            s.id               AS servicoId,
+            s.nome             AS servicoNome,
 
-	@Query("""
-    SELECT a
-    FROM Agendamento a
-    WHERE a.servico.secretaria IS NOT NULL
-      AND a.servico.secretaria.id = :secretariaId
-      AND a.tipoAtendimento = 'NORMAL'
-      AND a.situacao = 'AGENDADO'
-    ORDER BY a.horaAgendamento ASC
-""")
-	List<Agendamento> buscarProximoNormal(@Param("secretariaId") Long secretariaId, org.springframework.data.domain.Pageable pageable);
+            sec.id             AS secretariaId,
+            sec.nome           AS secretariaNome
 
-	@Query("""
-    SELECT a
-    FROM Agendamento a
-    WHERE a.servico.secretaria IS NOT NULL
-      AND a.servico.secretaria.id = :secretariaId
-      AND a.tipoAtendimento = 'PRIORIDADE'
-      AND a.situacao = 'AGENDADO'
-    ORDER BY a.horaAgendamento ASC
-""")
-	List<Agendamento> buscarProximoPrioridade(@Param("secretariaId") Long secretariaId, org.springframework.data.domain.Pageable pageable);
+        FROM agendamento a
+        LEFT JOIN tipo_atendimento ta ON a.tipo_atendimento_id = ta.id
+        LEFT JOIN usuario u ON a.usuario_id = u.id
+        LEFT JOIN servico s ON a.servico_id = s.id
+        LEFT JOIN secretaria sec ON s.secretaria_id = sec.id
+        """, nativeQuery = true)
+	List<AgendamentoDTO> buscarTodosAgendamentosComDetalhes();
 
 	@Query(value = """
     SELECT
         a.id               AS agendamentoId,
+        a.hora_agendamento AS horaAgendamento,
+        a.situacao         AS situacao,
         a.senha            AS senha,
-        a.tipo_atendimento AS tipoAtendimento,
-        a.hora_chamada     AS horaChamada,
+        a.tipo_agendamento AS tipoAgendamento,
+        a.observacao AS observacao,
+        
+        ta.id              AS tipoAtendimentoId,
+        ta.nome            AS tipoAtendimento,
+        ta.sigla           AS tipoAtendimentoSigla,
+        ta.peso            AS tipoAtendimentoPeso,
 
-        u.id                AS usuarioId,
-        u.nome              AS usuarioNome,
+        a.gerenciador_id   AS gerenciadorId,
+        gui.numero         AS guiche,
 
-        s.id                AS servicoId,
-        s.nome              AS servicoNome
+        u.id               AS usuarioId,
+        COALESCE(u.nome, a.nome_cidadao) AS usuarioNome,
+
+        -- PEGA O ID E NOME DE ONDE ESTIVER PREENCHIDO
+        COALESCE(s.id, ss.id)     AS servicoId,
+        COALESCE(s.nome, ss.nome) AS servicoNome,
+
+        setor.id           AS setorId,
+        setor.nome         AS setorNome,
+
+        e.id               AS enderecoId,
+        e.logradouro       AS enderecoLogradouro,
+        e.bairro           AS enderecoBairro,
+
+        a.secretaria_id    AS secretariaId,
+        sec.nome           AS secretariaNome
 
     FROM agendamento a
-    LEFT JOIN usuario u ON a.usuario_id = u.id
-    LEFT JOIN servico s  ON a.servico_id = s.id
+    LEFT JOIN tipo_atendimento ta ON a.tipo_atendimento_id = ta.id
+    LEFT JOIN usuario u           ON a.usuario_id = u.id
+    
+    -- MUDANÇA AQUI: Cada Join olha para sua respectiva coluna no agendamento
+    LEFT JOIN servico s           ON a.servico_id = s.id
+    LEFT JOIN servico_saude ss    ON a.servico_saude_id = ss.id -- 👈 Aqui estava o erro!
+    LEFT JOIN gerenciador_servico sg ON sg.servico_id = s.id
+    
+    LEFT JOIN gerenciador g       ON g.id = a.gerenciador_id
+    LEFT JOIN guiche gui          ON gui.id = g.guiche_id
+    INNER JOIN setor setor        ON a.setor_id = setor.id
+    INNER JOIN endereco e         ON setor.endereco_id = e.id
+    LEFT JOIN secretaria sec      ON sec.id = a.secretaria_id
 
-    WHERE a.hora_chamada IS NOT NULL
-    ORDER BY a.hora_chamada DESC
-    LIMIT 1
+    WHERE a.setor_id = :setorId
+    
+      AND (
+          -- CASO 1: gerenciador NÃO tem serviços vinculados -> vê só gerais
+          (
+              NOT EXISTS (
+                  SELECT 1\s
+                  FROM gerenciador_servico sg2\s
+                  WHERE sg2.gerenciador_id = :gerenciadorId
+              )
+              AND sg.servico_id IS NULL
+          )
+      
+          OR
+      
+          -- CASO 2: gerenciador TEM serviços -> vê só os dele
+          (
+              EXISTS (
+                  SELECT 1\s
+                  FROM gerenciador_servico sg2\s
+                  WHERE sg2.gerenciador_id = :gerenciadorId
+              )
+              AND sg.gerenciador_id = :gerenciadorId
+          )
+      )
+      
+      AND (
+          (:isHospital = true AND a.situacao IN ('AGENDADO', 'CHAMADO', 'EM_ATENDIMENTO', 'REAGENDADO', 'ATENDIDO', 'FALTOU'))
+          OR
+          (:isHospital = false AND a.hora_agendamento >= CURRENT_DATE AND a.hora_agendamento < CURRENT_DATE + INTERVAL '1 day')
+      )
+      
+    ORDER BY 
+        CASE 
+            WHEN a.situacao IN ('EM_ATENDIMENTO', 'CHAMADO') THEN 1
+            WHEN :isHospital = false AND (a.situacao IN ('AGENDADO', 'REAGENDADO')) 
+                 AND (a.tipo_agendamento = 'ESPONTANEO' OR a.hora_agendamento <= :agora) THEN 2
+            WHEN :isHospital = true AND a.situacao IN ('AGENDADO', 'REAGENDADO') THEN 2
+            WHEN a.situacao IN ('AGENDADO', 'REAGENDADO') AND a.hora_agendamento > :agora THEN 3
+            ELSE 4
+        END ASC,
+        COALESCE(ta.peso, 0) DESC,
+        a.hora_agendamento ASC
 """, nativeQuery = true)
-	UltimaChamadaDTO buscarUltimaChamada();
+	List<AgendamentoDTO> buscarAgendamentosPorSetor(
+			@Param("setorId") Long setorId,
+			@Param("agora") java.sql.Timestamp agora,
+			@Param("isHospital") boolean isHospital,
+			@Param("gerenciadorId") Long gerenciadorId
+	);
 
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("""
-    SELECT COUNT(a) 
-    FROM Agendamento a
-    WHERE a.servico.secretaria.id = :secretariaId
-      AND a.tipoAtendimento = :tipo
-      AND DATE(a.horaAgendamento) = :data
-""")
-	long countBySecretariaAndTipoAndData(Integer secretariaId, String tipo, LocalDate data);
+      SELECT a
+      FROM Agendamento a
+      WHERE a.setor.id = :setorId
+        AND a.tipoAtendimento.peso = 0 
+        AND a.situacao IN ('AGENDADO', 'REAGENDADO')
+        AND (
+            (a.tipoAgendamento = 'AGENDADO' AND a.horaAgendamento >= :inicio AND a.horaAgendamento <= :agora)
+            OR 
+            (a.tipoAgendamento = 'ESPONTANEO' AND a.horaAgendamento >= :inicio AND a.horaAgendamento <= :fim)
+        )
+      ORDER BY a.horaAgendamento ASC, a.id ASC
+  """)
+	List<Agendamento> buscarProximoNormalHoje(
+			@Param("setorId") Long setorId,
+			@Param("inicio") LocalDateTime inicio,
+			@Param("agora") LocalDateTime agora,
+			@Param("fim") LocalDateTime fim,
+			Pageable pageable
+	);
 
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("""
-    SELECT s.secretaria.id
-    FROM Servico s
-    WHERE s.id = :servicoId
-""")
-	Long findSecretariaIdByServicoId(@Param("servicoId") Long servicoId);
+       SELECT a
+       FROM Agendamento a
+       WHERE a.setor.id = :setorId
+         AND a.tipoAtendimento.peso > 0 
+         AND a.situacao IN ('AGENDADO', 'REAGENDADO')
+         AND (
+             (a.tipoAgendamento = 'AGENDADO' AND a.horaAgendamento >= :inicio AND a.horaAgendamento <= :agora)
+             OR 
+             (a.tipoAgendamento = 'ESPONTANEO' AND a.horaAgendamento >= :inicio AND a.horaAgendamento <= :fim)
+         )
+       ORDER BY a.tipoAtendimento.peso DESC, a.horaAgendamento ASC
+   """)
+	List<Agendamento> buscarProximoPrioridadeHoje(
+			@Param("setorId") Long setorId,
+			@Param("inicio") LocalDateTime inicio,
+			@Param("agora") LocalDateTime agora, // 🟢 Adicionamos o 'agora'
+			@Param("fim") LocalDateTime fim,
+			Pageable pageable
+	);
 
 	@Query("""
     SELECT a
     FROM Agendamento a
-    WHERE a.servico.secretaria IS NOT NULL
-      AND a.situacao = 'AGENDADO'
+    WHERE a.setor.id = :setorId
       AND a.senha = :senha
+      AND a.situacao IN ('AGENDADO', 'REAGENDADO', 'EM_ATENDIMENTO', 'FALTOU')
+      AND a.horaAgendamento >= :inicio
+      AND a.horaAgendamento < :fim
     ORDER BY a.horaAgendamento ASC
 """)
-	List<Agendamento> buscarPorSenha(@Param("senha") String senha, org.springframework.data.domain.Pageable pageable);
+	List<Agendamento> buscarPorSenhaHoje(
+			@Param("setorId") Long setorId,
+			@Param("senha") String senha,
+			@Param("inicio") LocalDateTime inicio,
+			@Param("fim") LocalDateTime fim,
+			Pageable pageable
+	);
+
+	@Query(value = """
+    select a.senha
+    from agendamento a
+    join tipo_atendimento ta on ta.id = a.tipo_atendimento_id 
+    where a.setor_id = :setorId
+      AND ta.sigla = :sigla
+      and date(a.hora_agendamento) = :data
+    order by a.id desc
+    limit 1
+""", nativeQuery = true)
+	String findUltimaSenhaDoDia(@Param("setorId") Long setorId,
+								@Param("sigla") String sigla,
+								@Param("data") LocalDate data);
+
+	@Query("""
+    select a.senha
+    from Agendamento a
+    where a.setor.id = :setorId
+      and upper(a.tipoAtendimento.nome) = upper(:tipo)
+      and a.horaAgendamento >= :inicio
+      and a.horaAgendamento < :fim
+    order by a.id desc
+""")
+	List<String> findUltimaSenhaDoDiaParaEspontaneoPorSetor(
+			@Param("setorId") Long setorId,
+			@Param("tipo") String tipo,
+			@Param("inicio") LocalDateTime inicio,
+			@Param("fim") LocalDateTime fim,
+			Pageable pageable
+	);
+
+	@Query("""
+    SELECT a 
+    FROM Agendamento a 
+    LEFT JOIN a.usuario u
+    WHERE a.cpf = :cpf 
+       OR u.login = :cpf 
+    ORDER BY a.horaAgendamento DESC
+""")
+	List<Agendamento> buscarHistoricoPorCpf(@Param("cpf") String cpf);
 }
